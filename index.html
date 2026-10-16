@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Trình tạo đề cương - Mobile & Desktop</title>
+  <meta name="theme-color" content="#071226">
+  <style>
+    :root{
+      --bg:#071226; --card:#0b1a2b; --muted:#9fb0c8;
+      --purple:#7c3aed; --green:#10b981; --white:#e6eef8;
+    }
+    *{box-sizing:border-box;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#031021,#041622);color:var(--white);-webkit-font-smoothing:antialiased}
+    .app{max-width:980px;margin:12px auto;padding:12px;display:flex;flex-direction:column;gap:12px;}
+    header{display:flex;justify-content:space-between;align-items:center}
+    .title{font-weight:800;font-size:18px}
+    .subtitle{font-size:12px;color:var(--muted)}
+    .panel{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.6)}
+    .controls{display:flex;gap:8px;flex-wrap:wrap}
+    .btn{border:none;padding:10px 14px;border-radius:10px;font-weight:800;cursor:pointer;font-size:15px}
+    .btn-purple{background:linear-gradient(180deg,var(--purple),#5b21b6);color:white}
+    .btn-green{background:linear-gradient(180deg,#34d399,#059669);color:#042014}
+    .btn-light{background:#e6eef8;color:#042014}
+    .paper-wrap{display:flex;justify-content:center;padding:8px}
+    .paper{width:94vw;max-width:880px;height:72vh;max-height:720px;background:#fff;border-radius:12px;overflow:hidden;position:relative;box-shadow:0 12px 36px rgba(0,0,0,0.5)}
+    /* header banner */
+    .header-banner{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:linear-gradient(90deg,#fff3f2,#f0fcff);color:#b91c1c}
+    .header-left{font-weight:900;font-size:20px;color:#b91c1c}
+    .header-meta{font-size:13px;color:#0b1220}
+    /* decor */
+    .decor-row{height:12px;background:linear-gradient(90deg,#a7f3d0,#bfdbfe);border-radius:6px;margin:8px}
+    /* timetable */
+    .timetable{width:100%;border-collapse:collapse;font-family:Inter, Arial, sans-serif;color:#072}
+    .timetable th, .timetable td{border:1px solid rgba(0,0,0,0.06);padding:8px;text-align:center;vertical-align:middle;font-size:13px}
+    .timetable thead th{background:linear-gradient(90deg,#fffbeb,#ecfeff);font-weight:800;color:#b91c1c}
+    .period{width:56px;background:linear-gradient(180deg,#fff,#f8fafc);font-weight:700}
+    .time{width:90px;background:linear-gradient(180deg,#fff,#f1f5f9);color:#0f1724}
+    .day-col{min-width:110px}
+    .cell-edit{min-height:36px;padding:6px;text-align:left;color:#0b1220;background:transparent;outline:none}
+    .morning-row{background:linear-gradient(180deg,#fff7ed,#ffffff)}
+    .afternoon-row{background:linear-gradient(180deg,#f0f9ff,#ffffff)}
+    .small-note{font-size:12px;color:#475569;padding:8px;background:linear-gradient(180deg,#fffbeb,#fff);border-radius:8px;margin:8px}
+    /* text boxes */
+    .text-box{position:absolute;min-width:100px;min-height:36px;padding:8px;border-radius:8px;background:#fff;color:#062;box-shadow:0 8px 20px rgba(2,6,23,0.12);cursor:move;touch-action:none}
+    .text-box[contenteditable="true"]{outline:2px dashed transparent}
+    /* modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:90}
+    .modal{background:var(--card);width:94vw;max-width:820px;border-radius:12px;padding:12px;color:var(--white);max-height:90vh;overflow:auto}
+    .templates-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:8px}
+    .template-card{background:#fff;color:#042014;padding:10px;border-radius:8px;cursor:pointer}
+    /* responsive */
+    @media(min-width:900px){
+      .paper{height:640px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <div class="title">Trình tạo đề cương</div>
+        <div class="subtitle">Chạm để sửa, kéo để di chuyển, xuất ảnh bằng nút bên dưới</div>
+      </div>
+      <div class="subtitle">Offline • HTML + html2canvas</div>
+    </header>
+
+    <div class="panel">
+      <div class="controls">
+        <button id="btnTemplates" class="btn btn-purple">Mẫu</button>
+        <button id="btnAddText" class="btn btn-green">Văn bản</button>
+        <button id="btnDownload" class="btn btn-light">Tải hình đề cương</button>
+        <button id="btnPrint" class="btn btn-purple">In hình</button>
+      </div>
+    </div>
+
+    <div class="panel paper-wrap">
+      <div id="paper" class="paper" role="region" aria-label="Khu vực đề cương">
+        <!-- Template will be injected here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Templates modal -->
+  <div id="modalRoot" class="hidden"></div>
+
+  <!-- html2canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <script>
+    // Elements
+    const paper = document.getElementById('paper');
+    const btnTemplates = document.getElementById('btnTemplates');
+    const btnAddText = document.getElementById('btnAddText');
+    const btnDownload = document.getElementById('btnDownload');
+    const btnPrint = document.getElementById('btnPrint');
+    const modalRoot = document.getElementById('modalRoot');
+
+    let selectedBox = null;
+    let boxCounter = 0;
+    let appliedTemplate = 'timetable';
+
+    // Templates including the timetable that resembles the image
+    const TEMPLATES = {
+      timetable: {
+        name: 'Mẫu thời khóa biểu học sinh',
+        render: (root) => {
+          root.innerHTML = '';
+          // header
+          const header = document.createElement('div');
+          header.className = 'header-banner';
+          header.innerHTML = `
+            <div style="display:flex;flex-direction:column;">
+              <div class="header-left">ĐỀ CƯƠNG ĐI HỌC</div>
+              <div class="header-meta">Giáo viên: <span contenteditable="true" class="cell-edit" style="display:inline-block;min-width:160px">Đặng Thị Thanh Thủy</span> &nbsp; Lớp: <span contenteditable="true" class="cell-edit" style="display:inline-block;min-width:50px">5.6</span></div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-weight:700;color:#b91c1c">TC: <span contenteditable="true" class="cell-edit" style="display:inline-block;min-width:120px">19 tiết + 4CN = 23 tiết</span></div>
+              <div class="header-meta">Áp dụng ngày: <span contenteditable="true" class="cell-edit" style="display:inline-block;min-width:120px">07/09/2020</span></div>
+            </div>
+          `;
+          root.appendChild(header);
+          // decor
+          const decor = document.createElement('div');
+          decor.className = 'decor-row';
+          root.appendChild(decor);
+          // table
+          const tableWrap = document.createElement('div');
+          tableWrap.style.padding = '8px';
+          tableWrap.innerHTML = `
+            <table class="timetable" role="table" aria-label="Bảng thời khóa biểu">
+              <thead>
+                <tr>
+                  <th>Buổi</th>
+                  <th class="period">Tiết</th>
+                  <th class="time">Thời gian</th>
+                  <th class="day-col">Thứ hai</th>
+                  <th class="day-col">Thứ ba</th>
+                  <th class="day-col">Thứ tư</th>
+                  <th class="day-col">Thứ năm</th>
+                  <th class="day-col">Thứ sáu</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="morning-row">
+                  <td rowspan="6" style="font-weight:800;color:#f59e0b">Sáng</td>
+                  <td class="period">1</td>
+                  <td class="time">40 phút</td>
+                  <td contenteditable="true" class="cell-edit">Chào cờ / HĐTN</td>
+                  <td contenteditable="true" class="cell-edit">Toán</td>
+                  <td contenteditable="true" class="cell-edit">Mĩ thuật</td>
+                  <td contenteditable="true" class="cell-edit">Tiếng Anh</td>
+                  <td contenteditable="true" class="cell-edit">Toán</td>
+                </tr>
+                <tr class="morning-row">
+                  <td class="period">2</td>
+                  <td class="time">40 phút</td>
+                  <td contenteditable="true" class="cell-edit">Toán</td>
+                  <td contenteditable="true" class="cell-edit">Tiếng Việt</td>
+                  <td contenteditable="true" class="cell-edit">GDTC</td>
+                  <td contenteditable="true" class="cell-edit">Tiếng Anh</td>
+                  <td contenteditable="true" class="cell-edit">Tiếng Việt</td>
+                </tr>
+                <tr class="morning-row">
+                  <td class="period">3</td>
+                  <td class="time">40 phút</td>
+                  <td contenteditable="true" class="cell-edit">GDTC</td>
+                  <td contenteditable="true" class="cell-edit">Tiếng Việt</td>
+                  <td contenteditable="true" class="cell-edit">Tiếng Việt</td>
+                  <td contenteditable="true" class="cell-edit">TH - CN</td>
+                  <td contenteditable="true" class="cell-edit">Khoa học</td>
+                </tr>
+                <tr class="morning-row">
+                  <td class="period">4</td>
+                  <td class="time">40 phút</td>
+                  <td contenteditable="true" class="cell-edit">Tiếng Việt</td>
+                  <td contenteditable="true" class="cell-edit">Lịch sử - Địa lí</td>
+                  <td contenteditable="true" class="cell-edit">Tiếng Việt</td>
+                  <td contenteditable="true" class="cell-edit">Tiếng Việt</td>
+                  <td contenteditable="true" class="cell-edit">HĐTN</td>
+                </tr>
+                <tr class="morning-row">
+                  <td class="period">5</td>
+                  <td class="time">40 phút</td>
+                  <td contenteditable="true" class="cell-edit">Đạo đức</td>
+                  <td contenteditable="true" class="cell-edit">...</td>
+                  <td contenteditable="true" class="cell-edit">...</td>
+                  <td contenteditable="true" class="cell-edit">...</td>
+                  <td contenteditable="true" class="cell-edit">SHL (20 phút)</td>
+                </tr>
+                <tr class="afternoon-row">
+                  <td rowspan="3" style="font-weight:800;color:#60a5fa">Chiều</td>
+                  <td class="period">1</td>
+                  <td class="time">40 phút</td>
+                  <td contenteditable="true" class="cell-edit">Tiếng Anh</td>
+                  <td contenteditable="true" class="cell-edit">Toán</td>
+                  <td contenteditable="true" class="cell-edit">Toán</td>
+                  <td contenteditable="true" class="cell-edit">Tiếng Việt</td>
+                  <td contenteditable="true" class="cell-edit">...</td>
+                </tr>
+                <tr class="afternoon-row">
+                  <td class="period">2</td>
+                  <td class="time">40 phút</td>
+                  <td contenteditable="true" class="cell-edit">Tiếng Anh</td>
+                  <td contenteditable="true" class="cell-edit">Âm nhạc</td>
+                  <td contenteditable="true" class="cell-edit">Tiếng Việt</td>
+                  <td contenteditable="true" class="cell-edit">Lịch sử - Địa lí</td>
+                  <td contenteditable="true" class="cell-edit">...</td>
+                </tr>
+                <tr class="afternoon-row">
+                  <td class="period">3</td>
+                  <td class="time">40 phút</td>
+                  <td contenteditable="true" class="cell-edit">HĐTN2</td>
+                  <td contenteditable="true" class="cell-edit">Khoa học</td>
+                  <td contenteditable="true" class="cell-edit">...</td>
+                  <td contenteditable="true" class="cell-edit">...</td>
+                  <td contenteditable="true" class="cell-edit">...</td>
+                </tr>
+              </tbody>
+            </table>
+          `;
+          tableWrap.querySelectorAll('[contenteditable]').forEach(el => {
+            el.setAttribute('spellcheck','false');
+          });
+          root.appendChild(tableWrap);
+          // footer note
+          const note = document.createElement('div');
+          note.className = 'small-note';
+          note.textContent = 'Sáng thứ hai vào lớp lúc 6h45, CC từ 6h45 đến 7h05, các ngày còn lại vào lớp lúc 7h00.';
+          root.appendChild(note);
+        }
+      },
+      blank: {
+        name: 'Mẫu trống',
+        render: (root) => {
+          root.innerHTML = '';
+          const header = document.createElement('div');
+          header.className = 'header-banner';
+          header.innerHTML = `<div class="header-left">ĐỀ CƯƠNG</div><div class="header-meta">Chọn mẫu hoặc thêm văn bản</div>`;
+          root.appendChild(header);
+          root.appendChild(document.createElement('div'));
+        }
+      }
+    };
+
+    // initial render
+    function applyTemplate(key){
+      appliedTemplate = key;
+      const tpl = TEMPLATES[key] || TEMPLATES.blank;
+      tpl.render(paper);
+      // remove any prior text boxes
+      paper.querySelectorAll('.text-box').forEach(b => b.remove());
+      selectedBox = null;
+    }
+    applyTemplate('timetable');
+
+    // Templates modal
+    btnTemplates.addEventListener('click', ()=>{
+      const backdrop = document.createElement('div');
+      backdrop.className = 'modal-backdrop';
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
+        <strong>Chọn mẫu</strong>
+        <button id="closeTpl" class="btn" style="background:#334155;color:white">Đóng</button>
+      </div><div class="templates-grid"></div>`;
+      backdrop.appendChild(modal);
+      document.body.appendChild(backdrop);
+      const grid = modal.querySelector('.templates-grid');
+      for(const k in TEMPLATES){
+        const card = document.createElement('div');
+        card.className = 'template-card';
+        card.innerHTML = `<div style="font-weight:700">${TEMPLATES[k].name}</div><div style="font-size:12px;color:#475569">Chạm để chọn</div>`;
+        card.addEventListener('click', ()=> {
+          applyTemplate(k);
+          backdrop.remove();
+        });
+        grid.appendChild(card);
+      }
+      modal.querySelector('#closeTpl').addEventListener('click', ()=> backdrop.remove());
+      backdrop.addEventListener('click', (e)=> { if(e.target === backdrop) backdrop.remove(); });
+    });
+
+    // Add movable text box
+    btnAddText.addEventListener('click', ()=>{
+      const box = document.createElement('div');
+      box.className = 'text-box';
+      box.contentEditable = 'true';
+      box.innerText = 'Văn bản...';
+      // center-ish
+      box.style.left = Math.max(12, paper.clientWidth * 0.08) + 'px';
+      box.style.top = Math.max(90, paper.clientHeight * 0.12) + 'px';
+      box.style.fontSize = '16px';
+      box.dataset.id = 'box-' + (++boxCounter);
+      makeDraggable(box);
+      paper.appendChild(box);
+      selectBox(box);
+      // focus for editing on add
+      setTimeout(()=> {
+        box.focus();
+        document.getSelection()?.collapseToEnd();
+      }, 50);
+    });
+
+    // Drag + touch support via pointer events
+    function makeDraggable(el){
+      let dragging=false, startX=0, startY=0, offsetX=0, offsetY=0;
+      el.style.left = el.style.left || '20px';
+      el.style.top = el.style.top || '80px';
+      el.addEventListener('pointerdown', (e)=>{
+        e.preventDefault();
+        el.setPointerCapture(e.pointerId);
+        dragging = true;
+        const pRect = paper.getBoundingClientRect();
+        const r = el.getBoundingClientRect();
+        startX = e.clientX; startY = e.clientY;
+        offsetX = r.left - pRect.left; offsetY = r.top - pRect.top;
+        selectBox(el);
+      });
+      window.addEventListener('pointermove', (e)=>{
+        if(!dragging) return;
+        const pRect = paper.getBoundingClientRect();
+        let nx = offsetX + (e.clientX - startX);
+        let ny = offsetY + (e.clientY - startY);
+        nx = Math.max(6, Math.min(pRect.width - el.offsetWidth - 6, nx));
+        ny = Math.max(6, Math.min(pRect.height - el.offsetHeight - 6, ny));
+        el.style.left = nx + 'px';
+        el.style.top = ny + 'px';
+      });
+      window.addEventListener('pointerup', ()=> dragging=false);
+
+      // double tap to focus/edit
+      let lastTap = 0;
+      el.addEventListener('click', (e)=>{
+        const now = Date.now();
+        if(now - lastTap < 300){ el.focus(); const sel = document.getSelection(); if(sel) sel.selectAllChildren(el); }
+        lastTap = now;
+      });
+      el.addEventListener('click', (e)=> e.stopPropagation());
+    }
+
+    function selectBox(el){
+      if(selectedBox) selectedBox.style.outline = 'none';
+      selectedBox = el;
+      if(selectedBox) selectedBox.style.outline = '2px dashed rgba(124,58,237,0.6)';
+    }
+
+    paper.addEventListener('click', (e)=>{
+      if(e.target === paper || e.target.classList.contains('template-body') || e.target.classList.contains('header-banner')) {
+        if(selectedBox){ selectedBox.style.outline = 'none'; selectedBox = null; }
+      }
+    });
+
+    // Export using html2canvas for high-fidelity screenshot
+    async function exportPaperToBlob(scale = 2){
+      // ensure contenteditable caret doesn't show in capture: blur active element
+      if(document.activeElement) document.activeElement.blur();
+      // html2canvas options
+      const options = {
+        scale: scale,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: paper.scrollWidth,
+        windowHeight: paper.scrollHeight
+      };
+      try {
+        const canvas = await html2canvas(paper, options);
+        return await new Promise(res => canvas.toBlob(blob => res(blob), 'image/png'));
+      } catch (err) {
+        console.error(err);
+        return null;
+      }
+    }
+
+    btnDownload.addEventListener('click', async ()=>{
+      btnDownload.disabled = true;
+      btnDownload.textContent = 'Đang tạo...';
+      const blob = await exportPaperToBlob(2);
+      if(!blob){ alert('Không thể tạo ảnh. Thử lại'); btnDownload.disabled=false; btnDownload.textContent='Tải hình đề cương'; return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'de-cuong.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      btnDownload.disabled = false;
+      btnDownload.textContent = 'Tải hình đề cương';
+    });
+
+    btnPrint.addEventListener('click', async ()=>{
+      btnPrint.disabled = true;
+      btnPrint.textContent = 'Chuẩn bị...';
+      const blob = await exportPaperToBlob(2);
+      if(!blob){ alert('Không thể tạo ảnh. Thử lại'); btnPrint.disabled=false; btnPrint.textContent='In hình'; return; }
+      const url = URL.createObjectURL(blob);
+      const w = window.open('');
+      if(!w){ alert('Trình duyệt chặn popup. Cho phép popup hoặc tải ảnh rồi in'); btnPrint.disabled=false; btnPrint.textContent='In hình'; return; }
+      w.document.write(`<img src="${url}" style="max-width:100%;display:block;margin:0 auto">`);
+      setTimeout(()=> { w.focus(); w.print(); }, 300);
+      btnPrint.disabled = false;
+      btnPrint.textContent = 'In hình';
+    });
+
+    // keyboard delete selected box
+    window.addEventListener('keydown', (e)=>{
+      if(e.key === 'Delete' && selectedBox){
+        if(confirm('Xóa vùng văn bản đã chọn?')){ selectedBox.remove(); selectedBox = null; }
+      }
+    });
+
+    // prevent double-tap zoom on mobile
+    document.addEventListener('touchstart', function(){}, {passive:false});
+
+    // initial focus styles disable caret-selection highlight when capturing
+    document.addEventListener('selectionchange', ()
